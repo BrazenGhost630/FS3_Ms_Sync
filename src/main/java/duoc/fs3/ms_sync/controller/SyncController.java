@@ -3,21 +3,20 @@ package duoc.fs3.ms_sync.controller;
 import duoc.fs3.ms_sync.model.ClothingItem;
 import duoc.fs3.ms_sync.model.Wardrobe;
 import duoc.fs3.ms_sync.service.SyncService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
-import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/sync")
+@RequiredArgsConstructor
 public class SyncController {
 
     private final SyncService syncService;
-
-    public SyncController(SyncService syncService) {
-        this.syncService = syncService;
-    }
 
     /**
      * Endpoint para sincronizar/exportar datos a la nube.
@@ -33,6 +32,31 @@ public class SyncController {
         
         Wardrobe syncedWardrobe = syncService.syncWithCloud(userId, localItems);
         return ResponseEntity.ok(syncedWardrobe);
+    }
+
+    /**
+     * Endpoint para subir una imagen individual
+     */
+    @PostMapping("/upload-image")
+    public ResponseEntity<Map<String, String>> uploadImage(
+            @RequestParam("image") MultipartFile file,
+            Principal principal) {
+        
+        String imageUrl = syncService.uploadImage(file);
+        return ResponseEntity.ok(Map.of("url", imageUrl));
+    }
+
+    /**
+     * Endpoint para eliminar una prenda del ropero
+     */
+    @DeleteMapping("/item/{itemId}")
+    public ResponseEntity<Map<String, String>> deleteItem(
+            @PathVariable String itemId,
+            Principal principal) {
+        
+        String userId = principal.getName();
+        syncService.deleteClothingItem(userId, itemId);
+        return ResponseEntity.ok(Map.of("message", "Prenda eliminada exitosamente"));
     }
 
     /**

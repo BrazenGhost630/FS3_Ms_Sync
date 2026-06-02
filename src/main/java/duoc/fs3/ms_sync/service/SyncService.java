@@ -3,7 +3,9 @@ package duoc.fs3.ms_sync.service;
 import duoc.fs3.ms_sync.model.ClothingItem;
 import duoc.fs3.ms_sync.model.Wardrobe;
 import duoc.fs3.ms_sync.repository.WardrobeRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -12,13 +14,11 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
+@RequiredArgsConstructor
 public class SyncService {
 
     private final WardrobeRepository wardrobeRepository;
-
-    public SyncService(WardrobeRepository wardrobeRepository) {
-        this.wardrobeRepository = wardrobeRepository;
-    }
+    private final ImageStorageService imageStorageService;
 
     /**
      * Sincronización bidireccional basada en Timestamp (updatedAt)
@@ -38,6 +38,8 @@ public class SyncService {
             
             // Si el item no existe en la nube, o si el local es más reciente, gana el local
             if (cloudItem == null || localItem.getUpdatedAt().isAfter(cloudItem.getUpdatedAt())) {
+                // Actualizar syncStatus a synced
+                localItem.setSyncStatus("synced");
                 mergedItems.put(localItem.getId(), localItem);
             }
         }
@@ -49,7 +51,31 @@ public class SyncService {
         // 5. Guardar en la base de datos (MongoDB) y retornar la versión final
         return wardrobeRepository.save(cloudWardrobe);
     }
-    
+
+    /**
+     * Sube una imagen y retorna la URL
+     */
+    public String uploadImage(MultipartFile file) {
+        return imageStorageService.storeImage(file);
+    }
+
+    /**
+     * Elimina una prenda del ropero del usuario
+     */
+    public void deleteClothingItem(String userId, String itemId) {
+        Wardrobe wardrobe = wardrobeRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Ropero no encontrado para el usuario"));
+
+        // Eliminar la prenda de la lista
+        List<ClothingItem> updatedItems = wardrobe.getItems().stream()
+                .filter(item -> !item.getId().equals(itemId))
+                .collect(Collectors.toList());
+
+        wardrobe.setItems(updatedItems);
+        wardrobe.setLastSync(Instant.now());
+        wardrobeRepository.save(wardrobe);
+    }
+
     /**
      * Solo descarga los datos de la nube
      */

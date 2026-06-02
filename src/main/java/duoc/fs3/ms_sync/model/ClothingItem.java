@@ -1,8 +1,17 @@
 package duoc.fs3.ms_sync.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import java.time.Instant;
 
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Document(collection = "clothing_items")
 public class ClothingItem {
     @Id
     private String id;
@@ -13,27 +22,21 @@ public class ClothingItem {
     private String imageUri;
     private String primaryColor;
     private String secondaryColor;
+    private String syncStatus; // 'pending', 'synced', 'error'
     private Instant updatedAt;
 
-    // Constructores, Getters y Setters
-    public ClothingItem() {}
-
-    public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getType() { return type; }
-    public void setType(String type) { this.type = type; }
-    public String getSeason() { return season; }
-    public void setSeason(String season) { this.season = season; }
-    public String getStyle() { return style; }
-    public void setStyle(String style) { this.style = style; }
-    public String getImageUri() { return imageUri; }
-    public void setImageUri(String imageUri) { this.imageUri = imageUri; }
-    public String getPrimaryColor() { return primaryColor; }
-    public void setPrimaryColor(String primaryColor) { this.primaryColor = primaryColor; }
-    public String getSecondaryColor() { return secondaryColor; }
-    public void setSecondaryColor(String secondaryColor) { this.secondaryColor = secondaryColor; }
-    public Instant getUpdatedAt() { return updatedAt; }
-    public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
+    public ClothingItem(String id, String name, String type, String season, String style, 
+                       String imageUri, String primaryColor, String secondaryColor, 
+                       String syncStatus, Instant updatedAt) {
+        this.id = id;
+        this.name = name;
+        this.type = type;
+        this.season = season;
+        this.style = style;
+        this.imageUri = imageUri;
+        this.primaryColor = primaryColor;
+        this.secondaryColor = secondaryColor;
+        this.syncStatus = syncStatus;
+        this.updatedAt = updatedAt;
+    }
 }
