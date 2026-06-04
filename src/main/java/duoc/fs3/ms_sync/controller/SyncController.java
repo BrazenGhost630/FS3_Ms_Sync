@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.security.Principal;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -51,9 +52,9 @@ public class SyncController {
      */
     @DeleteMapping("/item/{itemId}")
     public ResponseEntity<Map<String, String>> deleteItem(
-            @PathVariable String itemId,
+            @PathVariable Long itemId,
             Principal principal) {
-        
+
         String userId = principal.getName();
         syncService.deleteClothingItem(userId, itemId);
         return ResponseEntity.ok(Map.of("message", "Prenda eliminada exitosamente"));

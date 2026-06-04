@@ -29,17 +29,18 @@ public class SyncService {
                 .orElse(new Wardrobe(userId, Instant.now(), new ArrayList<>()));
 
         // 2. Mapear los items de la nube por ID para una búsqueda rápida
-        Map<String, ClothingItem> mergedItems = cloudWardrobe.getItems().stream()
+        Map<Long, ClothingItem> mergedItems = cloudWardrobe.getItems().stream()
                 .collect(Collectors.toMap(ClothingItem::getId, item -> item));
 
         // 3. Resolución de conflictos: Comparar timestamps
         for (ClothingItem localItem : localItems) {
             ClothingItem cloudItem = mergedItems.get(localItem.getId());
-            
+
             // Si el item no existe en la nube, o si el local es más reciente, gana el local
             if (cloudItem == null || localItem.getUpdatedAt().isAfter(cloudItem.getUpdatedAt())) {
-                // Actualizar syncStatus a synced
+                // Actualizar syncStatus a synced y establecer relación
                 localItem.setSyncStatus("synced");
+                localItem.setWardrobe(cloudWardrobe);
                 mergedItems.put(localItem.getId(), localItem);
             }
         }
@@ -48,7 +49,7 @@ public class SyncService {
         cloudWardrobe.setItems(new ArrayList<>(mergedItems.values()));
         cloudWardrobe.setLastSync(Instant.now());
 
-        // 5. Guardar en la base de datos (MongoDB) y retornar la versión final
+        // 5. Guardar en la base de datos (MySQL) y retornar la versión final
         return wardrobeRepository.save(cloudWardrobe);
     }
 
@@ -62,7 +63,7 @@ public class SyncService {
     /**
      * Elimina una prenda del ropero del usuario
      */
-    public void deleteClothingItem(String userId, String itemId) {
+    public void deleteClothingItem(String userId, Long itemId) {
         Wardrobe wardrobe = wardrobeRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Ropero no encontrado para el usuario"));
 
