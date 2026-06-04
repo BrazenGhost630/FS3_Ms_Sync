@@ -2,12 +2,19 @@ package duoc.fs3.ms_sync.controller;
 
 import duoc.fs3.ms_sync.model.ClothingItem;
 import duoc.fs3.ms_sync.model.Wardrobe;
+import duoc.fs3.ms_sync.service.ImageStorageService;
 import duoc.fs3.ms_sync.service.SyncService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.net.MalformedURLException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +25,7 @@ import java.util.Map;
 public class SyncController {
 
     private final SyncService syncService;
+    private final ImageStorageService imageStorageService;
 
     /**
      * Endpoint para sincronizar/exportar datos a la nube.
@@ -70,5 +78,34 @@ public class SyncController {
         
         Wardrobe cloudWardrobe = syncService.getCloudWardrobe(userId);
         return ResponseEntity.ok(cloudWardrobe);
+    }
+
+    /**
+     * Endpoint para servir una imagen guardada.
+     */
+    @GetMapping("/images/{filename:.+}")
+    @ResponseBody
+    public ResponseEntity<Resource> serveFile(@PathVariable String filename) {
+        try {
+            Path file = imageStorageService.loadImage(filename);
+            Resource resource = new UrlResource(file.toUri());
+
+            if (resource.exists() || resource.isReadable()) {
+                String contentType = Files.probeContentType(file);
+                if (contentType == null) {
+                    contentType = "application/octet-stream";
+                }
+
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (MalformedURLException e) {
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
     }
 }

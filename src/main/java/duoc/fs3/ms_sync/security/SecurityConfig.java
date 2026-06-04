@@ -1,39 +1,45 @@
+// Este código es para el SecurityConfig.java de MS-SYNC
 package duoc.fs3.ms_sync.security;
 
+import duoc.fs3.ms_sync.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableWebSecurity
 public class SecurityConfig {
 
-    private final JwtAuthenticationFilter jwtAuthFilter;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthFilter) {
-        this.jwtAuthFilter = jwtAuthFilter;
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http
-            // Desactivar CSRF ya que usamos tokens en lugar de cookies
-            .csrf(csrf -> csrf.disable())
-            // Configurar el manejo de sesiones como sin estado (Stateless)
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                // Dejamos pasar peticiones a la documentación de Swagger sin token
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                // Requerimos token para nuestros endpoints
-                .requestMatchers("/api/v1/sync/**").authenticated()
-                .anyRequest().authenticated()
-            )
-            // Agregar nuestro filtro JWT antes del filtro de autenticación estándar de Spring
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .build();
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        http
+                // 1. FUNDAMENTAL PARA QUE NO DE 403 EN REACT NATIVE (CORS)
+                .cors(Customizer.withDefaults()) 
+                
+                // 2. FUNDAMENTAL PARA QUE NO BLOQUEE LOS POST
+                .csrf(csrf -> csrf.disable())
+                
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Permitir acceso público a las imágenes (GET)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/sync/images/**").permitAll()
+                        // 3. AQUÍ PERMITES TUS ENDPOINTS DE SYNC SÓLO CON ESTAR AUTENTICADO
+                        .requestMatchers("/api/v1/sync/**").authenticated()
+                        .anyRequest().authenticated()
+                )
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
     }
 }

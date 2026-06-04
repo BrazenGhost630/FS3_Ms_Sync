@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,5 +29,6 @@ public class ClothingItem {
 
     @ManyToOne
     @JoinColumn(name = "wardrobe_id")
+    @JsonIgnore
     private Wardrobe wardrobe;
 }
