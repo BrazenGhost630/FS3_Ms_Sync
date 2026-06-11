@@ -1,47 +1,41 @@
 package duoc.fs3.ms_sync.service;
 
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.DeleteObjectRequest;
+import com.amazonaws.services.s3.model.GeneratePresignedUrlRequest;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PutObjectRequest;
 import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.net.URL;
+import java.util.Date;
 import java.util.UUID;
 
 @Service
 public class ImageStorageService {
 
-    @Value("${app.storage.location}")
-    private String storageLocation;
+    private final AmazonS3 s3Client;
 
-    private Path rootLocation;
+    @Value("${aws.s3.bucketName}")
+    private String bucketName;
 
-    /**
-     * Inicializa el directorio de almacenamiento
-     */
-    public void init() {
-        try {
-            this.rootLocation = Paths.get(storageLocation);
-            Files.createDirectories(rootLocation);
-        } catch (IOException e) {
-            throw new RuntimeException("No se pudo crear el directorio de almacenamiento", e);
-        }
+    @Value("${aws.s3.presignedUrlExpirationMinutes}")
+    private int presignedUrlExpirationMinutes;
+
+    public ImageStorageService(AmazonS3 s3Client) {
+        this.s3Client = s3Client;
     }
 
     /**
-     * Guarda una imagen y retorna la URL de acceso
+     * Guarda una imagen en S3 y retorna la URL presigned para acceso
      * @param file Archivo de imagen
-     * @return URL de la imagen guardada
+     * @return URL presigned de la imagen guardada
      */
     public String storeImage(MultipartFile file) {
-        if (rootLocation == null) {
-            init();
-        }
-
         try {
             // Validar que sea una imagen
             String contentType = file.getContentType();
@@ -53,43 +47,66 @@ public class ImageStorageService {
             String extension = FilenameUtils.getExtension(file.getOriginalFilename());
             String uniqueFileName = UUID.randomUUID().toString() + "." + extension;
 
-            // Guardar archivo
-            Path targetLocation = rootLocation.resolve(uniqueFileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+            // Configurar metadata del objeto
+            ObjectMetadata metadata = new ObjectMetadata();
+            metadata.setContentType(contentType);
+            metadata.setContentLength(file.getSize());
 
-            // Retornar URL relativa para acceso
-            return "/api/v1/sync/images/" + uniqueFileName;
+            // Subir archivo a S3
+            PutObjectRequest putRequest = new PutObjectRequest(
+                bucketName,
+                uniqueFileName,
+                file.getInputStream(),
+                metadata
+            );
+            s3Client.putObject(putRequest);
+
+            // Generar y retornar URL presigned
+            return generatePresignedUrl(uniqueFileName);
         } catch (IOException e) {
-            throw new RuntimeException("Error al guardar la imagen", e);
+            throw new RuntimeException("Error al guardar la imagen en S3", e);
         }
     }
 
     /**
-     * Elimina una imagen por su nombre de archivo
+     * Elimina una imagen de S3 por su nombre de archivo
      * @param fileName Nombre del archivo a eliminar
      */
     public void deleteImage(String fileName) {
         try {
-            if (rootLocation == null) {
-                init();
-            }
-            Path filePath = rootLocation.resolve(fileName).normalize();
-            Files.deleteIfExists(filePath);
-        } catch (IOException e) {
-            throw new RuntimeException("Error al eliminar la imagen", e);
+            DeleteObjectRequest deleteRequest = new DeleteObjectRequest(bucketName, fileName);
+            s3Client.deleteObject(deleteRequest);
+        } catch (Exception e) {
+            throw new RuntimeException("Error al eliminar la imagen de S3", e);
         }
     }
 
     /**
-     * Obtiene la ruta completa de una imagen
+     * Genera una URL presigned para acceder a una imagen en S3
      * @param fileName Nombre del archivo
-     * @return Ruta completa del archivo
+     * @return URL presigned para acceso temporal
      */
-    public Path loadImage(String fileName) {
-        if (rootLocation == null) {
-            init();
-        }
-        return rootLocation.resolve(fileName).normalize();
+    public String loadImage(String fileName) {
+        return generatePresignedUrl(fileName);
+    }
+
+    /**
+     * Genera una URL presigned para un archivo en S3
+     * @param fileName Nombre del archivo
+     * @return URL presigned
+     */
+    private String generatePresignedUrl(String fileName) {
+        Date expiration = new Date(System.currentTimeMillis() + 
+            presignedUrlExpirationMinutes * 60 * 1000L);
+        
+        GeneratePresignedUrlRequest urlRequest = new GeneratePresignedUrlRequest(
+            bucketName,
+            fileName
+        );
+        urlRequest.setExpiration(expiration);
+        
+        URL url = s3Client.generatePresignedUrl(urlRequest);
+        return url.toString();
     }
 
     /**
