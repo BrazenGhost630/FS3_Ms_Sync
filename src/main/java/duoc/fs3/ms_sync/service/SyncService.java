@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -19,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 public class SyncService {
 
     private final WardrobeRepository wardrobeRepository;
-    private final ImageStorageService imageStorageService;
+    private final Optional<ImageStorageService> imageStorageService;
 
     /**
      * Sincronización bidireccional basada en Timestamp (updatedAt)
@@ -71,7 +72,10 @@ public class SyncService {
      * Sube una imagen y retorna la URL
      */
     public String uploadImage(MultipartFile file) {
-        return imageStorageService.storeImage(file);
+        if (imageStorageService.isEmpty()) {
+            throw new RuntimeException("El servicio de almacenamiento de imágenes no está disponible. Configure aws.s3.enabled=true para usar S3.");
+        }
+        return imageStorageService.get().storeImage(file);
     }
 
     /**
@@ -89,8 +93,10 @@ public class SyncService {
 
         // Eliminar la imagen asociada del almacenamiento si existe
         if (itemToRemove.getImageUri() != null && !itemToRemove.getImageUri().isEmpty()) {
-            String fileName = imageStorageService.extractFileName(itemToRemove.getImageUri());
-            imageStorageService.deleteImage(fileName);
+            if (imageStorageService.isPresent()) {
+                String fileName = imageStorageService.get().extractFileName(itemToRemove.getImageUri());
+                imageStorageService.get().deleteImage(fileName);
+            }
         }
 
         // Remover la prenda de la lista. Gracias a orphanRemoval=true, JPA la borrará de la BD.

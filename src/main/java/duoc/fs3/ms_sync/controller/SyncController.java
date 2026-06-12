@@ -5,19 +5,14 @@ import duoc.fs3.ms_sync.model.Wardrobe;
 import duoc.fs3.ms_sync.service.ImageStorageService;
 import duoc.fs3.ms_sync.service.SyncService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.net.MalformedURLException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.Principal;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/sync")
@@ -25,7 +20,7 @@ import java.util.Map;
 public class SyncController {
 
     private final SyncService syncService;
-    private final ImageStorageService imageStorageService;
+    private final Optional<ImageStorageService> imageStorageService;
 
     /**
      * Endpoint para sincronizar/exportar datos a la nube.
@@ -88,7 +83,10 @@ public class SyncController {
     @ResponseBody
     public ResponseEntity<Map<String, String>> serveFile(@PathVariable String filename) {
         try {
-            String imageUrl = imageStorageService.loadImage(filename);
+            if (imageStorageService.isEmpty()) {
+                return ResponseEntity.internalServerError().body(Map.of("error", "El servicio de almacenamiento de imágenes no está disponible. Configure aws.s3.enabled=true para usar S3."));
+            }
+            String imageUrl = imageStorageService.get().loadImage(filename);
             return ResponseEntity.ok(Map.of("url", imageUrl));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
