@@ -1,0 +1,57 @@
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ms_sync_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: sync_db
+      MYSQL_USER: sync_user
+      MYSQL_PASSWORD: sync_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - ms_sync_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ms_sync_app
+    ports:
+      - "8083:8083"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/sync_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_USERNAME: sync_user
+      SPRING_DATASOURCE_PASSWORD: sync_password
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQLDialect
+      JWT_SECRET: bXlTZWNyZXRLZXlGb3JKV1RUaGF0SXNBdExlYXN0MjU2Qml0c0xvbmdGb3JIUzI1NkFsZ29yaXRobUFuZFNob3VsZEJlQmFzZTY0RW5jb2RlZA==
+      AWS_S3_ENABLED: "false"
+      AWS_S3_BUCKET_NAME: tu-bucket
+      AWS_S3_PRESIGNED_URL_EXPIRATION_MINUTES: "60"
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 10MB
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 10MB
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ms_sync_network
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  ms_sync_network:
+    driver: bridge
