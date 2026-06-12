@@ -82,28 +82,14 @@ public class SyncController {
 
     /**
      * Endpoint para servir una imagen guardada.
+     * Retorna la URL presigned de S3 para que el cliente acceda directamente.
      */
     @GetMapping("/images/{filename:.+}")
     @ResponseBody
-    public ResponseEntity<Resource> serveFile(@PathVariable String filename) {
+    public ResponseEntity<Map<String, String>> serveFile(@PathVariable String filename) {
         try {
-            Path file = imageStorageService.loadImage(filename);
-            Resource resource = new UrlResource(file.toUri());
-
-            if (resource.exists() || resource.isReadable()) {
-                String contentType = Files.probeContentType(file);
-                if (contentType == null) {
-                    contentType = "application/octet-stream";
-                }
-
-                return ResponseEntity.ok()
-                        .contentType(MediaType.parseMediaType(contentType))
-                        .body(resource);
-            } else {
-                return ResponseEntity.notFound().build();
-            }
-        } catch (MalformedURLException e) {
-            return ResponseEntity.badRequest().build();
+            String imageUrl = imageStorageService.loadImage(filename);
+            return ResponseEntity.ok(Map.of("url", imageUrl));
         } catch (Exception e) {
             return ResponseEntity.internalServerError().build();
         }
