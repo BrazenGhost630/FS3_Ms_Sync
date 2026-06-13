@@ -1,7 +1,6 @@
 // Este código es para el SecurityConfig.java de MS-SYNC
 package duoc.fs3.ms_sync.security;
 
-import duoc.fs3.ms_sync.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;

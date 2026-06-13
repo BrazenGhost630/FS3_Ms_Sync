@@ -62,6 +62,28 @@ public class SyncService {
             }
         }
 
+        // 4. Eliminar prendas de la nube que ya no existen localmente
+        List<Long> localItemIds = localItems.stream()
+                .map(ClothingItem::getId)
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+
+        List<ClothingItem> itemsToRemove = cloudWardrobe.getItems().stream()
+                .filter(item -> !localItemIds.contains(item.getId()))
+                .collect(Collectors.toList());
+
+        for (ClothingItem itemToRemove : itemsToRemove) {
+            // Eliminar la imagen asociada si existe
+            if (itemToRemove.getImageUri() != null && !itemToRemove.getImageUri().isEmpty()) {
+                if (imageStorageService.isPresent()) {
+                    String fileName = imageStorageService.get().extractFileName(itemToRemove.getImageUri());
+                    imageStorageService.get().deleteImage(fileName);
+                }
+            }
+            // Remover la prenda (JPA orphanRemoval se encarga de eliminar de BD)
+            cloudWardrobe.getItems().remove(itemToRemove);
+        }
+
         cloudWardrobe.setLastSync(Instant.now());
 
         // 5. Guardar en la base de datos (MySQL) y retornar la versión final
