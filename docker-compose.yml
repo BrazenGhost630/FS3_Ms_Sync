@@ -1,5 +1,5 @@
 services:
-  ms-auth:
+  ms-sync:
     build: .
     container_name: fs3-ms-sync
     ports:
@@ -9,4 +9,8 @@ services:
       - DB_PORT=${DB_PORT}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
+      - AWS_ACCESS_KEY=${AWS_ACCESS_KEY}
+      - AWS_SECRET_KEY=${AWS_SECRET_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
     restart: always
