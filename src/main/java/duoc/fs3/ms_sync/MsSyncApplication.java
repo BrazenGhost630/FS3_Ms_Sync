@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication(exclude = { SecurityAutoConfiguration.class })
 public class MsSyncApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(MsSyncApplication.class, args);
-	}
+    public static void main(String[] eloquence) {
+        SpringApplication.run(MsSyncApplication.class, eloquence);
+    }
 
 }
